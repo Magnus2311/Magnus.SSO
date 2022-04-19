@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Magnus.SSO.Database.Repositories;
+using Magnus.SSO.Helpers;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -11,14 +13,11 @@ namespace magnus.sso.Helpers
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
     public class SSOAttribute : Attribute, IAuthorizationFilter
     {
-        private readonly UsersDbService _dbService;
+        private readonly UsersRepository _usersRepo;
         private AuthorizationFilterContext _context;
         private string accessSecToken;
 
-        public SSOAttribute()
-        {
-            _dbService = new UsersDbService();
-        }
+        public SSOAttribute() => _usersRepo = new UsersRepository(Startup.Configuration!);
 
         public void OnAuthorization(AuthorizationFilterContext context)
         {
@@ -32,8 +31,8 @@ namespace magnus.sso.Helpers
                 if (nameClaim is not null)
                 {
                     var username = nameClaim.Value;
-                    var user = _dbService.FindByUsernameAsync(username).GetAwaiter().GetResult();
-                    context.HttpContext.Items["User"] = user;
+                    var user = _usersRepo.GetByUsername(username).GetAwaiter().GetResult();
+                    AppSettings.LoggedUser = user;
                     return;
                 }
                
@@ -47,12 +46,12 @@ namespace magnus.sso.Helpers
                 if (nameClaim is not null)
                 {
                     var username = nameClaim.Value;
-                    var user = _dbService.FindByUsernameAsync(username).GetAwaiter().GetResult();
+                    var user = _usersRepo.GetByUsername(username).GetAwaiter().GetResult();
                     if (user.RefreshTokens.Any(rt => ValidateToken(rt)))
                     {
                         accessSecToken = user.GenerateJwtToken();
                         SetAccessToken(accessSecToken, context);
-                        context.HttpContext.Items["User"] = user;
+                        AppSettings.LoggedUser = user;
                         return;
                     }
                 }

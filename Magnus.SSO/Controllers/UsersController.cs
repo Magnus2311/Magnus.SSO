@@ -1,3 +1,5 @@
+using magnus.sso.Helpers;
+using Magnus.SSO.Helpers;
 using Magnus.SSO.Models.DTOs;
 using Magnus.SSO.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -35,6 +37,21 @@ namespace magnus.sso.Controllers
             }
 
             return Unauthorized();
+        }
+
+        [SSO]
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            var user = AppSettings.LoggedUser;
+            var refreshToken = HttpContext.Request.Cookies.FirstOrDefault(c => c.Key == "refresh_token").Value;
+
+            user.RefreshTokens.Remove(refreshToken);
+            await _usersService.Update(user);
+
+            HttpContext.Response.Cookies.Delete("access_token");
+            HttpContext.Response.Cookies.Delete("refresh_token");
+            return Ok();
         }
 
         private void SetAccessTokenInCookie(string accessToken)

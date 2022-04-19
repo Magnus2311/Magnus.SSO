@@ -58,5 +58,8 @@ namespace Magnus.SSO.Services
             await _usersRepository.Update(user);
             return (true, accessToken, refreshToken);
         }
+
+        public async Task Update(User user)
+            => await _usersRepository.Update(user);
     }
 }
