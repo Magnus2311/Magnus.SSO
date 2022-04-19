@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using Magnus.SSO.Database.Repositories;
+using Magnus.SSO.Helpers;
 using Magnus.SSO.Services;
 using Magnus.SSO.Services.Mappers;
 
@@ -22,8 +23,9 @@ namespace magnus.sso
 
             services
                 .AddTransient<UsersRepository>()
-                .AddTransient<UsersService>();
-           
+                .AddTransient<UsersService>()
+                .AddTransient<HashService>();
+
             services.AddCors(p => p.AddPolicy("corsapp", builder =>
             {
                 builder.WithOrigins("*").AllowAnyMethod().AllowAnyHeader();
@@ -37,7 +39,7 @@ namespace magnus.sso
             IMapper mapper = mapperConfig.CreateMapper();
             services.AddSingleton(mapper);
 
-        }   
+        }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {

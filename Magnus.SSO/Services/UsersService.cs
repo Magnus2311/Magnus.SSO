@@ -10,12 +10,14 @@ namespace Magnus.SSO.Services
     {
         private readonly UsersRepository _usersRepository;
         private readonly IMapper _mapper;
+        private readonly HashService _hashService;
 
         public UsersService(UsersRepository usersRepository,
-            IMapper mapper)
+            IMapper mapper, HashService hashService)
         {
             _usersRepository = usersRepository;
             _mapper = mapper;
+            _hashService = hashService;
         }
 
         public async Task<UserDTO?> Add(UserDTO? userDTO)
@@ -27,6 +29,7 @@ namespace Magnus.SSO.Services
             if (allUsers.Any(u => u.Username.ToUpperInvariant() == user.Username.ToUpperInvariant())) return null;
             if (allUsers.Any(u => u.Email.ToUpperInvariant() == user.Email.ToUpperInvariant())) return null;
 
+            user.Password = _hashService.Hash(userDTO.Password);
             await _usersRepository.Add(user);
             user = await _usersRepository.GetByUsername(user.Username);
 
@@ -42,6 +45,7 @@ namespace Magnus.SSO.Services
                 user = await _usersRepository.GetByEmail(loginDTO.Username);
 
             if (user == null) return (false, string.Empty, string.Empty);
+            if (!_hashService.VerifyPassword(user.Password, loginDTO.Password)) return (false, string.Empty, string.Empty);
 
             var accessToken = user.GenerateJwtToken();
             var refreshToken = user.GenerateJwtToken(true);
@@ -52,7 +56,7 @@ namespace Magnus.SSO.Services
             });
             user.RefreshTokens.Add(refreshToken);
             await _usersRepository.Update(user);
-            return (true, accessToken, refreshToken);  
+            return (true, accessToken, refreshToken);
         }
     }
 }
