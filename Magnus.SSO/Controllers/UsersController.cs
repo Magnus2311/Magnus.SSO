@@ -54,6 +54,10 @@ namespace magnus.sso.Controllers
             return Ok();
         }
 
+        [SSO]
+        [HttpGet("try-login")]
+        public IActionResult TryLogin() => Ok();
+
         private void SetAccessTokenInCookie(string accessToken)
         {
             var cookieOptions = new CookieOptions
