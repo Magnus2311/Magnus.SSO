@@ -38,16 +38,16 @@ namespace magnus.sso.Helpers
                
             }
 
-            context.HttpContext.Request.Cookies.TryGetValue("refresh_token", out var token);
-            if (token is not null && ValidateToken(token))
+            context.HttpContext.Request.Cookies.TryGetValue("refresh_token", out var refreshToken);
+            if (refreshToken is not null && ValidateToken(refreshToken))
             {
-                var claims = ((JwtSecurityToken)handler.ReadToken(token)).Claims;
+                var claims = ((JwtSecurityToken)handler.ReadToken(refreshToken)).Claims;
                 var nameClaim = claims.FirstOrDefault(claim => claim.Type.Contains("name"));
                 if (nameClaim is not null)
                 {
                     var username = nameClaim.Value;
                     var user = _usersRepo.GetByUsername(username).GetAwaiter().GetResult();
-                    if (user.RefreshTokens.Any(rt => ValidateToken(rt)))
+                    if (user.RefreshTokens.Any(rt => rt == refreshToken))
                     {
                         accessSecToken = user.GenerateJwtToken();
                         SetAccessToken(accessSecToken, context);
