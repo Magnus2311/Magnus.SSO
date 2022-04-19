@@ -14,45 +14,39 @@ namespace magnus.sso.Helpers
     public class SSOAttribute : Attribute, IAuthorizationFilter
     {
         private readonly UsersRepository _usersRepo;
-        private AuthorizationFilterContext _context;
+        private AuthorizationFilterContext? _context;
         private string accessSecToken;
 
-        public SSOAttribute() => _usersRepo = new UsersRepository(Startup.Configuration!);
+        public SSOAttribute()
+        {
+            _usersRepo = new UsersRepository(Startup.Configuration!);
+            accessSecToken = string.Empty;
+        }
 
-        public void OnAuthorization(AuthorizationFilterContext context)
+        public async void OnAuthorization(AuthorizationFilterContext context)
         {
             var handler = new JwtSecurityTokenHandler();
             _context = context;
-            context.HttpContext.Request.Cookies.TryGetValue("access_token", out var accessToken);
-            if (accessToken is not null && ValidateToken(accessToken))
-            {
-                var claims = ((JwtSecurityToken)handler.ReadToken(accessToken)).Claims;
-                var nameClaim = claims.FirstOrDefault(claim => claim.Type.Contains("name"));
-                if (nameClaim is not null)
-                {
-                    var username = nameClaim.Value;
-                    var user = _usersRepo.GetByUsername(username).GetAwaiter().GetResult();
-                    AppSettings.LoggedUser = user;
-                    return;
-                }
-               
-            }
+            if (context.HttpContext.Request.Cookies.TryGetValue("access_token", out var accessToken)
+                && await ValidateToken(accessToken)) return;
 
-            context.HttpContext.Request.Cookies.TryGetValue("refresh_token", out var refreshToken);
-            if (refreshToken is not null && ValidateToken(refreshToken))
+            if (context.HttpContext.Request.Cookies.TryGetValue("refresh_token", out var token)
+                && await ValidateToken(token))
             {
-                var claims = ((JwtSecurityToken)handler.ReadToken(refreshToken)).Claims;
-                var nameClaim = claims.FirstOrDefault(claim => claim.Type.Contains("name"));
-                if (nameClaim is not null)
+                var claims = ((JwtSecurityToken)handler.ReadToken(token)).Claims;
+                if (claims != null)
                 {
-                    var username = nameClaim.Value;
-                    var user = _usersRepo.GetByUsername(username).GetAwaiter().GetResult();
-                    if (user.RefreshTokens.Any(rt => rt == refreshToken))
+                    var userClaim = claims.FirstOrDefault(claim => claim.Type.Contains("name"));
+                    if (userClaim != null)
                     {
-                        accessSecToken = user.GenerateJwtToken();
-                        SetAccessToken(accessSecToken, context);
-                        AppSettings.LoggedUser = user;
-                        return;
+                        var username = userClaim.Value;
+                        var user = await _usersRepo.GetByUsername(username);
+                        if (user != null && user.RefreshTokens.Any(rt => rt == token))
+                        {
+                            accessSecToken = user.GenerateJwtToken();
+                            SetAccessToken(accessSecToken, context);
+                            return;
+                        }
                     }
                 }
             }
@@ -60,8 +54,10 @@ namespace magnus.sso.Helpers
             context.Result = new UnauthorizedResult();
         }
 
-        private bool ValidateToken(string authToken)
+        private async Task<bool> ValidateToken(string? authToken)
         {
+            if (authToken is null) return false;
+
             var tokenHandler = new JwtSecurityTokenHandler();
             var validationParameters = GetValidationParameters();
 
@@ -69,8 +65,15 @@ namespace magnus.sso.Helpers
             {
                 SecurityToken validatedToken;
                 IPrincipal principal = tokenHandler.ValidateToken(authToken, validationParameters, out validatedToken);
-                _context.HttpContext.User = (ClaimsPrincipal)principal;
-                return true;
+                if (_context != null)
+                {
+                    _context.HttpContext.User = (ClaimsPrincipal)principal;
+                    var user = await _usersRepo.GetByUsername(_context.HttpContext.User?.Identity?.Name ?? "");
+                    AppSettings.LoggedUser = user;
+                    return true;
+                }
+
+                return false;
             }
             catch
             {
