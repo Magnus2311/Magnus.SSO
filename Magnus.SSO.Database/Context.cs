@@ -14,9 +14,9 @@ namespace Magnus.SSO.Database
         {
             _configuration = configuration;
 
-            _client = new MongoClient($"mongodb+srv://{_configuration["DB_Username"]}:{_configuration["DB_Password"]}{_configuration["DB_Cluster"]}.rdkdn.mongodb.net/{_configuration["DB_DatabaseName"]}?retryWrites=true&w=majority");
+            _client = new MongoClient($"mongodb+srv://{_configuration["DB:SSO:Username"]}:{_configuration["DB:SSO:Password"]}{_configuration["DB:SSO:Cluster"]}.rdkdn.mongodb.net/{_configuration["DB:SSO:Collection"]}?retryWrites=true&w=majority");
 
-            _db = _client.GetDatabase(_configuration["DB_DatabaseName"]);
+            _db = _client.GetDatabase(_configuration["DB:SSO:Collection"]);
         }
     }
 }
