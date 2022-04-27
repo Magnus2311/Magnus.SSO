@@ -17,13 +17,18 @@ namespace magnus.sso.Controllers
             _usersService = usersService;
         }
 
-        [HttpPost]
+        [HttpPost("register")]
         public async Task<IActionResult> Add(UserDTO? user)
         {
             user = await _usersService.Add(user);
             if (user is null) return Conflict();
             else return Ok(user);
         }
+
+        [HttpGet("check-username-availability")]
+        public bool CheckUsernameAvailability(string username)
+            => _usersService.IsUsernameAvailable(username);
+
 
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDTO loginDTO)

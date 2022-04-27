@@ -36,6 +36,12 @@ namespace Magnus.SSO.Services
             return _mapper.Map<UserDTO>(user);
         }
 
+        public bool IsUsernameAvailable(string username)
+        {
+            var usernames = _usersRepository.GetAllUsernames().Select(u => u.ToUpperInvariant());
+            return !usernames.Contains(username.ToUpperInvariant());
+        }
+
         public async Task<(bool, string, string)> Login(LoginDTO loginDTO)
         {
             User? user = null;
