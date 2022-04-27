@@ -48,10 +48,16 @@ namespace magnus.sso
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
+            app.UseRouting();
 
             app.UseCors("corsapp");
             app.UseHttpsRedirection();
             app.UseAuthorization();
+
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllers();
+            });
         }
     }
 }

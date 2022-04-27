@@ -1,4 +1,5 @@
 ﻿using Magnus.SSO.Database.Models;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -41,6 +42,9 @@ namespace Magnus.SSO.Database.Repositories
 
             await _collection.ReplaceOneAsync(Builders<User>.Filter.Eq(e => e.Id, entity.Id), entity);
         }
+
+        public IEnumerable<string> GetAllUsernames()
+            => _collection.AsQueryable().Select(u => u.Username).ToList();
 
         public async Task<User> GetByEmail(string email)
             => await (await _collection.FindAsync(e => e.Email.ToUpperInvariant() == email.ToUpperInvariant())).FirstOrDefaultAsync();
