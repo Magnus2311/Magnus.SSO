@@ -25,6 +25,13 @@ namespace magnus.sso.Controllers
             else return Ok(user);
         }
 
+        [HttpGet("confirm-email")]
+        public async Task<IActionResult> ConfirmEmail(string token)
+        {
+            var userDTO = await _usersService.ConfirmEmail(token);
+            return Redirect(userDTO?.CallbackUrl ?? "");
+        }
+
         [HttpGet("check-username-availability")]
         public bool CheckUsernameAvailability(string username)
             => _usersService.IsUsernameAvailable(username);

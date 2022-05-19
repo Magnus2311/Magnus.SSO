@@ -11,6 +11,7 @@ namespace Magnus.SSO.Services.Mappers
         {
             CreateMap<UserDTO, User>()
                 .ForMember(dest => dest.Id, opt => opt.MapFrom(src => string.IsNullOrEmpty(src.Id) ? ObjectId.GenerateNewId() : ObjectId.Parse(src.Id)));
+            CreateMap<User, UserDTO>();
         }
     }
 }

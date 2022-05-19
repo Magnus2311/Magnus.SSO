@@ -2,6 +2,7 @@
 using Magnus.SSO.Database.Repositories;
 using Magnus.SSO.Helpers;
 using Magnus.SSO.Services;
+using Magnus.SSO.Services.Connections;
 using Magnus.SSO.Services.Mappers;
 
 namespace magnus.sso
@@ -20,11 +21,15 @@ namespace magnus.sso
             services.AddControllers();
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen();
+            services.AddHttpClient<EmailsConnectionService>();
 
             services
                 .AddTransient<UsersRepository>()
                 .AddTransient<UsersService>()
-                .AddTransient<HashService>();
+                .AddTransient<HashService>()
+                .AddTransient<UrlsRepository>()
+                .AddTransient<UrlsService>()
+                .AddTransient<Tokenizer>();
 
             services.AddCors(p => p.AddPolicy("corsapp", builder =>
             {

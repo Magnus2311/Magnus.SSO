@@ -1,4 +1,6 @@
-﻿namespace Magnus.SSO.Models.DTOs
+﻿using Magnus.SSO.Helpers;
+
+namespace Magnus.SSO.Models.DTOs
 {
     public class UserDTO
     {
@@ -8,5 +10,7 @@
         public string Email { get; set; } = string.Empty;
         public long Version { get; set; } = 1;
         public bool IsDeleted { get; set; }
+        public string CallbackUrl { get; set; } = string.Empty;
+        public SenderType SenderType { get; set; }
     }
 }
