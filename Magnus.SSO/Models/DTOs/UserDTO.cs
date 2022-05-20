@@ -8,8 +8,6 @@ namespace Magnus.SSO.Models.DTOs
         public string Username { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
-        public long Version { get; set; } = 1;
-        public bool IsDeleted { get; set; }
         public string CallbackUrl { get; set; } = string.Empty;
         public SenderType SenderType { get; set; }
     }

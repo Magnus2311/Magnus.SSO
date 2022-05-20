@@ -45,6 +45,7 @@ namespace magnus.sso.Helpers
                         {
                             accessSecToken = user.GenerateJwtToken();
                             SetAccessToken(accessSecToken, context);
+                            AppSettings.LoggedUser = user;
                             return;
                         }
                     }

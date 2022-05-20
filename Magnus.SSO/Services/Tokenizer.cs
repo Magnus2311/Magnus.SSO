@@ -1,3 +1,4 @@
+using Magnus.SSO.Helpers;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -9,16 +10,10 @@ namespace Magnus.SSO.Services
     public class Tokenizer
     {
         private JwtHeader _header;
-        private readonly string _issuer;
-        private readonly string _audience;
-        private readonly string _secret;
 
         public Tokenizer(IConfiguration configuration)
         {
-            _issuer = configuration["Magnus:SSO:JWT:Issuer"];
-            _audience = configuration["Magnus:SSO:JWT:Audience"];
-            _secret = configuration["Magnus:SSO:JWT:Secret"];
-            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secret));
+            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(AppSettings.Secret));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
             _header = new JwtHeader(credentials);
         }
@@ -32,7 +27,7 @@ namespace Magnus.SSO.Services
             };
 
             var expires = DateTime.Now.AddDays(2);
-            var payload = new JwtPayload(_issuer, _audience, authClaims, DateTime.Now, expires);
+            var payload = new JwtPayload(AppSettings.ValidIssuer, AppSettings.ValidAudience, authClaims, DateTime.Now, expires);
 
             var secToken = new JwtSecurityToken(_header, payload);
             var handler = new JwtSecurityTokenHandler();
@@ -83,9 +78,9 @@ namespace Magnus.SSO.Services
                 ValidateLifetime = true,
                 ValidateAudience = true,
                 ValidateIssuer = true,
-                ValidIssuer = _issuer,
-                ValidAudience = _audience,
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secret))
+                ValidIssuer = AppSettings.ValidIssuer,
+                ValidAudience = AppSettings.ValidAudience,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(AppSettings.Secret))
             };
         }
     }

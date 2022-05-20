@@ -2,6 +2,7 @@ using magnus.sso.Helpers;
 using Magnus.SSO.Helpers;
 using Magnus.SSO.Models.DTOs;
 using Magnus.SSO.Services;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace magnus.sso.Controllers
@@ -40,12 +41,14 @@ namespace magnus.sso.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDTO loginDTO)
         {
+            loginDTO.URL = Request.GetDisplayUrl();
+            loginDTO.IP = Request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "IP unavailable";
             var loginStatus = await _usersService.Login(loginDTO);
-            if (loginStatus.Item1)
+            if (loginStatus.IsSuccessful)
             {
-                SetAccessTokenInCookie(loginStatus.Item2);
-                SetRefreshTokenInCookie(loginStatus.Item3);
-                return Ok();
+                SetAccessTokenInCookie(loginStatus.AccessToken);
+                SetRefreshTokenInCookie(loginStatus.RefreshToken);
+                return Ok(loginStatus.User);
             }
 
             return Unauthorized();
@@ -68,13 +71,12 @@ namespace magnus.sso.Controllers
 
         [SSO]
         [HttpGet("try-login")]
-        public IActionResult TryLogin() => Ok();
+        public IActionResult TryLogin() => Ok(_usersService.ReturnUserOnLogin());
 
         private void SetAccessTokenInCookie(string accessToken)
         {
             var cookieOptions = new CookieOptions
             {
-                HttpOnly = true,
                 Expires = DateTime.Now.AddHours(1),
             };
             Response.Cookies.Append("access_token", accessToken, cookieOptions);

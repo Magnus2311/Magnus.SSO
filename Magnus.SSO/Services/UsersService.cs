@@ -91,7 +91,7 @@ namespace Magnus.SSO.Services
             return !usernames.Contains(username.ToUpperInvariant());
         }
 
-        public async Task<(bool, string, string)> Login(LoginDTO loginDTO)
+        public async Task<(bool IsSuccessful, string AccessToken, string RefreshToken, LoginResponseDTO User)> Login(LoginDTO loginDTO)
         {
             User? user = null;
             if (!string.IsNullOrEmpty(loginDTO.Username))
@@ -99,8 +99,8 @@ namespace Magnus.SSO.Services
             else if (!string.IsNullOrEmpty(loginDTO.Email))
                 user = await _usersRepository.GetByEmail(loginDTO.Email);
 
-            if (user == null) return (false, string.Empty, string.Empty);
-            if (!_hashService.VerifyPassword(user.Password, loginDTO.Password)) return (false, string.Empty, string.Empty);
+            if (user == null) return (false, string.Empty, string.Empty, new LoginResponseDTO());
+            if (!_hashService.VerifyPassword(user.Password, loginDTO.Password)) return (false, string.Empty, string.Empty, new LoginResponseDTO());
 
             var accessToken = user.GenerateJwtToken();
             var refreshToken = user.GenerateJwtToken(true);
@@ -111,8 +111,11 @@ namespace Magnus.SSO.Services
             });
             user.RefreshTokens.Add(refreshToken);
             await _usersRepository.Update(user);
-            return (true, accessToken, refreshToken);
+            return (true, accessToken, refreshToken, _mapper.Map<LoginResponseDTO>(user));
         }
+
+        public UserDTO ReturnUserOnLogin()
+            => _mapper.Map<UserDTO>(AppSettings.LoggedUser);
 
         public async Task Update(User user)
             => await _usersRepository.Update(user);
