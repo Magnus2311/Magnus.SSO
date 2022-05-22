@@ -13,7 +13,7 @@ namespace Magnus.SSO.Database.Models
         public bool IsDeleted { get; set; }
         public DateTime Created { get; set; } = DateTime.Now;
         public DateTime Updated { get; set; } = DateTime.Now;
-        public List<string> RefreshTokens = new List<string>();
+        public HashSet<string> RefreshTokens = new HashSet<string>();
         public List<Login> Logins { get; set; } = new List<Login>();
     }
 }

@@ -46,8 +46,6 @@ namespace magnus.sso.Controllers
             var loginStatus = await _usersService.Login(loginDTO);
             if (loginStatus.IsSuccessful)
             {
-                SetAccessTokenInCookie(loginStatus.AccessToken);
-                SetRefreshTokenInCookie(loginStatus.RefreshToken);
                 return Ok(loginStatus.User);
             }
 
@@ -71,7 +69,8 @@ namespace magnus.sso.Controllers
 
         [SSO]
         [HttpGet("try-login")]
-        public IActionResult TryLogin() => Ok(_usersService.ReturnUserOnLogin());
+        public IActionResult TryLogin(string accessToken)
+            => Ok(accessToken);
 
         private void SetAccessTokenInCookie(string accessToken)
         {

@@ -1,12 +1,17 @@
 ﻿using Magnus.SSO.Database.Repositories;
 using Magnus.SSO.Helpers;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.Extensions.Primitives;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Principal;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Web;
 
 namespace magnus.sso.Helpers
 {
@@ -25,15 +30,37 @@ namespace magnus.sso.Helpers
 
         public async void OnAuthorization(AuthorizationFilterContext context)
         {
-            var handler = new JwtSecurityTokenHandler();
+            var httpType = context.HttpContext.Request.Method.ToUpperInvariant();
+
+            var accessToken = string.Empty;
+            var refreshToken = string.Empty;
+
+            if (httpType == "POST")
+            {
+                var bodyStream = new StreamReader(context.HttpContext.Request.Body);
+                bodyStream.BaseStream.Seek(0, SeekOrigin.Begin);
+                var bodyText = bodyStream.ReadToEnd();
+                var body = JsonSerializer.Deserialize<dynamic>(bodyText);
+
+                accessToken = body?.accessToken;
+                refreshToken = body?.refreshToken;
+            }
+
+            if (httpType == "GET")
+            {
+                accessToken = context.HttpContext.Request.Query["accessToken"];
+                refreshToken = context.HttpContext.Request.Query["refreshToken"];
+            }
+
             _context = context;
-            if (context.HttpContext.Request.Cookies.TryGetValue("access_token", out var accessToken)
+            var handler = new JwtSecurityTokenHandler();
+            if (!string.IsNullOrEmpty(accessToken)
                 && await ValidateToken(accessToken)) return;
 
-            if (context.HttpContext.Request.Cookies.TryGetValue("refresh_token", out var token)
-                && await ValidateToken(token))
+            if (!string.IsNullOrEmpty(refreshToken)
+                && await ValidateToken(refreshToken))
             {
-                var claims = ((JwtSecurityToken)handler.ReadToken(token)).Claims;
+                var claims = ((JwtSecurityToken)handler.ReadToken(refreshToken)).Claims;
                 if (claims != null)
                 {
                     var userClaim = claims.FirstOrDefault(claim => claim.Type.Contains("name"));
@@ -41,7 +68,7 @@ namespace magnus.sso.Helpers
                     {
                         var username = userClaim.Value;
                         var user = await _usersRepo.GetByUsername(username);
-                        if (user != null && user.RefreshTokens.Any(rt => rt == token))
+                        if (user != null && user.RefreshTokens.Any(rt => rt == refreshToken))
                         {
                             accessSecToken = user.GenerateJwtToken();
                             SetAccessToken(accessSecToken, context);
@@ -89,18 +116,17 @@ namespace magnus.sso.Helpers
                 ValidateLifetime = true,
                 ValidateAudience = true,
                 ValidateIssuer = true,
-                ValidIssuer = Startup.Configuration?["JWT_ValidIssuer"],
-                ValidAudience = Startup.Configuration?["JWT_ValidAudience"],
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Startup.Configuration?["JWT_Secret"] ?? ""))
+                ValidIssuer = AppSettings.ValidIssuer,
+                ValidAudience = AppSettings.ValidAudience,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(AppSettings.Secret ?? ""))
             };
         }
         private static void SetAccessToken(string accessToken, AuthorizationFilterContext context)
         {
-            var cookieOptions = new CookieOptions
-            {
-                Expires = DateTime.Now.AddHours(1),
-            };
-            context.HttpContext.Response.Cookies.Append("access_token", accessToken, cookieOptions);
+            QueryBuilder queryBuilder = new QueryBuilder();
+            var modifiedValue = HttpUtility.UrlDecode(accessToken);
+            queryBuilder.Add("accessToken", modifiedValue);
+            context.HttpContext.Request.QueryString = queryBuilder.ToQueryString();
         }
     }
 }
