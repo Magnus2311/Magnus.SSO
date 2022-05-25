@@ -59,6 +59,12 @@ namespace magnus.sso
             app.UseHttpsRedirection();
             app.UseAuthorization();
 
+            app.Use(async (context, next) =>
+            {
+                context.Request.EnableBuffering();
+                await next();
+            });
+
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();

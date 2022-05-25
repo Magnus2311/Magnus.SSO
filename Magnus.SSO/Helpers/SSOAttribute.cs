@@ -30,29 +30,31 @@ namespace magnus.sso.Helpers
 
         public async void OnAuthorization(AuthorizationFilterContext context)
         {
-            var httpType = context.HttpContext.Request.Method.ToUpperInvariant();
+            _context = context;
+            var httpType = _context.HttpContext.Request.Method.ToUpperInvariant();
 
             var accessToken = string.Empty;
             var refreshToken = string.Empty;
 
-            if (httpType == "POST")
+            if (httpType == "POST" || httpType == "PUT" || httpType == "PATCH")
             {
-                var bodyStream = new StreamReader(context.HttpContext.Request.Body);
-                bodyStream.BaseStream.Seek(0, SeekOrigin.Begin);
-                var bodyText = bodyStream.ReadToEnd();
-                var body = JsonSerializer.Deserialize<dynamic>(bodyText);
-
-                accessToken = body?.accessToken;
-                refreshToken = body?.refreshToken;
+                using (StreamReader reader
+                  = new StreamReader(_context.HttpContext.Request.Body, Encoding.UTF8, true, 1024, true))
+                {
+                    var bodyStr = await reader.ReadToEndAsync();
+                    var data = JsonSerializer.Deserialize<JsonElement>(bodyStr);
+                    accessToken = data.GetProperty("accessToken").GetString();
+                    refreshToken = data.GetProperty("refreshToken").GetString();
+                    _context.HttpContext.Request.Body.Position = 0;
+                }
             }
 
             if (httpType == "GET")
             {
-                accessToken = context.HttpContext.Request.Query["accessToken"];
-                refreshToken = context.HttpContext.Request.Query["refreshToken"];
+                accessToken = _context.HttpContext.Request.Query["accessToken"];
+                refreshToken = _context.HttpContext.Request.Query["refreshToken"];
             }
 
-            _context = context;
             var handler = new JwtSecurityTokenHandler();
             if (!string.IsNullOrEmpty(accessToken)
                 && await ValidateToken(accessToken)) return;
