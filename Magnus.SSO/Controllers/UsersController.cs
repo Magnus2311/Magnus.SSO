@@ -70,7 +70,7 @@ namespace magnus.sso.Controllers
         [SSO]
         [HttpGet("try-login")]
         public IActionResult TryLogin(string accessToken)
-            => Ok(accessToken);
+            => Ok(new { AccessToken = accessToken });
 
         private void SetAccessTokenInCookie(string accessToken)
         {
