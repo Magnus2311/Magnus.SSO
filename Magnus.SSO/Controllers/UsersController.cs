@@ -72,6 +72,10 @@ namespace magnus.sso.Controllers
         public IActionResult TryLogin(string accessToken)
             => Ok(new { AccessToken = accessToken });
 
+        [HttpGet("validate-token")]
+        public async Task<IActionResult> ValidateToken(string accessToken)
+            => Ok(await _usersService.ValidateToken(accessToken));
+
         private void SetAccessTokenInCookie(string accessToken)
         {
             var cookieOptions = new CookieOptions

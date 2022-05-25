@@ -55,6 +55,23 @@ namespace Magnus.SSO.Services
             return null;
         }
 
+        public async Task<string> ValidateToken(string token)
+        {
+            if (!_tokenizer.ValidateToken(token))
+                return string.Empty;
+
+            var claims = _tokenizer.DecodeToken(token).ToDictionary(x => x.Key, x => x.Value);
+            var username = claims["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"];
+
+            var user = await _usersRepository.GetByUsername(username);
+            if (user != null)
+            {
+                return user.Id.ToString();
+            }
+
+            return string.Empty;
+        }
+
         public async Task<UserDTO?> Add(UserDTO? userDTO)
         {
             if (userDTO is null) return null;
