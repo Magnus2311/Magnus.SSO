@@ -57,7 +57,6 @@ namespace magnus.sso
 
             app.UseCors("corsapp");
             app.UseHttpsRedirection();
-            app.UseAuthorization();
 
             app.Use(async (context, next) =>
             {
