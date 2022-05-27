@@ -4,6 +4,7 @@ using Magnus.SSO.Helpers;
 using Magnus.SSO.Services;
 using Magnus.SSO.Services.Connections;
 using Magnus.SSO.Services.Mappers;
+using Microsoft.AspNetCore.Diagnostics;
 
 namespace magnus.sso
 {
@@ -48,15 +49,23 @@ namespace magnus.sso
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            if (env.IsDevelopment())
-            {
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            }
+            app.UseSwagger();
+            app.UseSwaggerUI();
+
             app.UseRouting();
 
             app.UseCors("corsapp");
             app.UseHttpsRedirection();
+
+            app.UseExceptionHandler(c => c.Run(async context =>
+            {
+                var exception = context.Features
+                    ?.Get<IExceptionHandlerPathFeature>()
+                    ?.Error;
+                var response = new { error = exception?.Message };
+                await context.Response.WriteAsJsonAsync(response);
+                app.ApplicationServices?.GetService<ILogger>()?.LogError(exception?.Message);
+            }));
 
             app.Use(async (context, next) =>
             {
