@@ -30,56 +30,65 @@ namespace magnus.sso.Helpers
 
         public async void OnAuthorization(AuthorizationFilterContext context)
         {
-            var httpType = context.HttpContext.Request.Method.ToUpperInvariant();
-
-            var accessToken = string.Empty;
-            var refreshToken = string.Empty;
-
-            if (httpType == "POST")
+            try
             {
-                var bodyStream = new StreamReader(context.HttpContext.Request.Body);
-                bodyStream.BaseStream.Seek(0, SeekOrigin.Begin);
-                var bodyText = bodyStream.ReadToEnd();
-                var body = JsonSerializer.Deserialize<dynamic>(bodyText);
+                _context = context;
+                var httpType = _context.HttpContext.Request.Method.ToUpperInvariant();
 
-                accessToken = body?.accessToken;
-                refreshToken = body?.refreshToken;
-            }
+                var accessToken = string.Empty;
+                var refreshToken = string.Empty;
 
-            if (httpType == "GET")
-            {
-                accessToken = context.HttpContext.Request.Query["accessToken"];
-                refreshToken = context.HttpContext.Request.Query["refreshToken"];
-            }
-
-            _context = context;
-            var handler = new JwtSecurityTokenHandler();
-            if (!string.IsNullOrEmpty(accessToken)
-                && await ValidateToken(accessToken)) return;
-
-            if (!string.IsNullOrEmpty(refreshToken)
-                && await ValidateToken(refreshToken))
-            {
-                var claims = ((JwtSecurityToken)handler.ReadToken(refreshToken)).Claims;
-                if (claims != null)
+                if (httpType == "POST" || httpType == "PUT" || httpType == "PATCH")
                 {
-                    var userClaim = claims.FirstOrDefault(claim => claim.Type.Contains("name"));
-                    if (userClaim != null)
+                    using (StreamReader reader
+                      = new StreamReader(_context.HttpContext.Request.Body, Encoding.UTF8, true, 1024, true))
                     {
-                        var username = userClaim.Value;
-                        var user = await _usersRepo.GetByUsername(username);
-                        if (user != null && user.RefreshTokens.Any(rt => rt == refreshToken))
+                        var bodyStr = await reader.ReadToEndAsync();
+                        var data = JsonSerializer.Deserialize<JsonElement>(bodyStr);
+                        accessToken = data.GetProperty("accessToken").GetString();
+                        refreshToken = data.GetProperty("refreshToken").GetString();
+                        _context.HttpContext.Request.Body.Position = 0;
+                    }
+                }
+
+                if (httpType == "GET")
+                {
+                    accessToken = _context.HttpContext.Request.Query["accessToken"];
+                    refreshToken = _context.HttpContext.Request.Query["refreshToken"];
+                }
+
+                var handler = new JwtSecurityTokenHandler();
+                if (!string.IsNullOrEmpty(accessToken)
+                    && await ValidateToken(accessToken)) return;
+
+                if (!string.IsNullOrEmpty(refreshToken)
+                    && await ValidateToken(refreshToken))
+                {
+                    var claims = ((JwtSecurityToken)handler.ReadToken(refreshToken)).Claims;
+                    if (claims != null)
+                    {
+                        var userClaim = claims.FirstOrDefault(claim => claim.Type.Contains("name"));
+                        if (userClaim != null)
                         {
-                            accessSecToken = user.GenerateJwtToken();
-                            SetAccessToken(accessSecToken, context);
-                            AppSettings.LoggedUser = user;
-                            return;
+                            var username = userClaim.Value;
+                            var user = await _usersRepo.GetByUsername(username);
+                            if (user != null && user.RefreshTokens.Any(rt => rt == refreshToken))
+                            {
+                                accessSecToken = user.GenerateJwtToken();
+                                SetAccessToken(accessSecToken, _context);
+                                AppSettings.LoggedUser = user;
+                                return;
+                            }
                         }
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
 
-            context.Result = new UnauthorizedResult();
+            _context.Result = new UnauthorizedResult();
         }
 
         private async Task<bool> ValidateToken(string? authToken)

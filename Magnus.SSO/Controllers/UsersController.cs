@@ -52,18 +52,14 @@ namespace magnus.sso.Controllers
             return Unauthorized();
         }
 
-        [SSO]
         [HttpPost("logout")]
-        public async Task<IActionResult> Logout()
+        public async Task<IActionResult> Logout(string refreshToken)
         {
             var user = AppSettings.LoggedUser;
-            var refreshToken = HttpContext.Request.Cookies.FirstOrDefault(c => c.Key == "refresh_token").Value;
 
             user.RefreshTokens.Remove(refreshToken);
             await _usersService.Update(user);
 
-            HttpContext.Response.Cookies.Delete("access_token");
-            HttpContext.Response.Cookies.Delete("refresh_token");
             return Ok();
         }
 
@@ -71,6 +67,10 @@ namespace magnus.sso.Controllers
         [HttpGet("try-login")]
         public IActionResult TryLogin(string accessToken)
             => Ok(new { AccessToken = accessToken });
+
+        [HttpGet("validate-token")]
+        public async Task<IActionResult> ValidateToken(string accessToken)
+            => Ok(await _usersService.ValidateToken(accessToken));
 
         private void SetAccessTokenInCookie(string accessToken)
         {
