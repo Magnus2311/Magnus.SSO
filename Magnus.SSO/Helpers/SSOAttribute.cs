@@ -88,7 +88,8 @@ namespace magnus.sso.Helpers
                 Console.WriteLine(ex);
             }
 
-            _context.Result = new UnauthorizedResult();
+            if (_context is not null)
+                _context.Result = new UnauthorizedResult();
         }
 
         private async Task<bool> ValidateToken(string? authToken)
