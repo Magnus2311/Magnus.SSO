@@ -28,7 +28,7 @@ namespace magnus.sso.Helpers
             accessSecToken = string.Empty;
         }
 
-        public async void OnAuthorization(AuthorizationFilterContext context)
+        public void OnAuthorization(AuthorizationFilterContext context)
         {
             try
             {
@@ -43,7 +43,7 @@ namespace magnus.sso.Helpers
                     using (StreamReader reader
                       = new StreamReader(_context.HttpContext.Request.Body, Encoding.UTF8, true, 1024, true))
                     {
-                        var bodyStr = await reader.ReadToEndAsync();
+                        var bodyStr = reader.ReadToEndAsync().GetAwaiter().GetResult();
                         var data = JsonSerializer.Deserialize<JsonElement>(bodyStr);
                         accessToken = data.GetProperty("accessToken").GetString();
                         refreshToken = data.GetProperty("refreshToken").GetString();
@@ -59,10 +59,10 @@ namespace magnus.sso.Helpers
 
                 var handler = new JwtSecurityTokenHandler();
                 if (!string.IsNullOrEmpty(accessToken)
-                    && await ValidateToken(accessToken)) return;
+                    && ValidateToken(accessToken).GetAwaiter().GetResult()) return;
 
                 if (!string.IsNullOrEmpty(refreshToken)
-                    && await ValidateToken(refreshToken))
+                    && ValidateToken(refreshToken).GetAwaiter().GetResult())
                 {
                     var claims = ((JwtSecurityToken)handler.ReadToken(refreshToken)).Claims;
                     if (claims != null)
@@ -71,7 +71,7 @@ namespace magnus.sso.Helpers
                         if (userClaim != null)
                         {
                             var username = userClaim.Value;
-                            var user = await _usersRepo.GetByUsername(username);
+                            var user = _usersRepo.GetByUsername(username).GetAwaiter().GetResult();
                             if (user != null && user.RefreshTokens.Any(rt => rt == refreshToken))
                             {
                                 accessSecToken = user.GenerateJwtToken();
@@ -88,7 +88,8 @@ namespace magnus.sso.Helpers
                 Console.WriteLine(ex);
             }
 
-            _context.Result = new UnauthorizedResult();
+            if (_context is not null)
+                _context.Result = new UnauthorizedResult();
         }
 
         private async Task<bool> ValidateToken(string? authToken)
