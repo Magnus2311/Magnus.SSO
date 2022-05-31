@@ -30,7 +30,7 @@ namespace magnus.sso.Controllers
         public async Task<IActionResult> ConfirmEmail(string token)
         {
             var userDTO = await _usersService.ConfirmEmail(token);
-            return Redirect(userDTO?.CallbackUrl ?? "");
+            return Redirect(userDTO is not null ? $"{userDTO.CallbackUrl}?username={userDTO.Username}" : "");
         }
 
         [HttpGet("check-username-availability")]
