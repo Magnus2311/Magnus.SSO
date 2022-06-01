@@ -12,10 +12,12 @@ namespace magnus.sso.Controllers
     public class UsersController : ControllerBase
     {
         private readonly UsersService _usersService;
+        private readonly AppSettings _appSettings;
 
-        public UsersController(UsersService usersService)
+        public UsersController(UsersService usersService, AppSettings appSettings)
         {
             _usersService = usersService;
+            _appSettings = appSettings;
         }
 
         [HttpPost("register")]
@@ -55,7 +57,7 @@ namespace magnus.sso.Controllers
         [HttpPost("logout")]
         public async Task<IActionResult> Logout(string refreshToken)
         {
-            var user = AppSettings.LoggedUser;
+            var user = _appSettings.LoggedUser;
 
             user.RefreshTokens.Remove(refreshToken);
             await _usersService.Update(user);
@@ -79,10 +81,20 @@ namespace magnus.sso.Controllers
         }
 
         [HttpPost("change-password-by-token")]
-        public async Task<IActionResult> ChangePasswordByToken(ChangePasswordByToken changePasswordByToken)
+        public async Task<IActionResult> ChangePasswordByToken(ChangePasswordByTokenDTO changePasswordByToken)
         {
             await _usersService.ChangePasswordByToken(changePasswordByToken.Token, changePasswordByToken.NewPassword);
             return Ok();
+        }
+
+        [SSO]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword(ChangePasswordDTO changePasswordByToken)
+        {
+            return Ok(new ChangePasswordResponseDTO
+            {
+                IsChangeSuccessful = await _usersService.ChangePassword(changePasswordByToken)
+            });
         }
 
         [SSO]

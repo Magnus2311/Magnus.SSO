@@ -9,6 +9,6 @@ namespace Magnus.SSO.Helpers
         public static string ValidAudience = Startup.Configuration?["Magnus:SSO:JWT:Audience"] ?? string.Empty;
         public static string Secret = Startup.Configuration?["Magnus:SSO:JWT:Secret"] ?? string.Empty;
 
-        public static User LoggedUser { get; set; } = new User();
+        public User LoggedUser { get; set; } = new User();
     }
 }

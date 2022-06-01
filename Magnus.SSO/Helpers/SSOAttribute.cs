@@ -76,7 +76,8 @@ namespace magnus.sso.Helpers
                             {
                                 accessSecToken = user.GenerateJwtToken();
                                 SetAccessToken(accessSecToken, _context);
-                                AppSettings.LoggedUser = user;
+                                var appSettings = _context.HttpContext.RequestServices.GetService<AppSettings>();
+                                if (appSettings is not null) appSettings.LoggedUser = user;
                                 return;
                             }
                         }
@@ -107,7 +108,8 @@ namespace magnus.sso.Helpers
                 {
                     _context.HttpContext.User = (ClaimsPrincipal)principal;
                     var user = await _usersRepo.GetByUsername(_context.HttpContext.User?.Identity?.Name ?? "");
-                    AppSettings.LoggedUser = user;
+                    var appSettings = _context.HttpContext.RequestServices.GetService<AppSettings>();
+                    if (appSettings is not null) appSettings.LoggedUser = user;
                     return true;
                 }
 

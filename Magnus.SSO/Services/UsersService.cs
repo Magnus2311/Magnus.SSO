@@ -17,13 +17,15 @@ namespace Magnus.SSO.Services
         private readonly HashService _hashService;
         private readonly Tokenizer _tokenizer;
         private readonly EmailsConnectionService _emailsConnectionService;
+        private readonly AppSettings _appSettings;
 
         public UsersService(UsersRepository usersRepository,
             UrlsService urlsService,
             Tokenizer tokenizer,
             IMapper mapper,
             HashService hashService,
-            EmailsConnectionService emailsConnectionService)
+            EmailsConnectionService emailsConnectionService,
+            AppSettings appSettings)
         {
             _usersRepository = usersRepository;
             _urlsService = urlsService;
@@ -31,6 +33,7 @@ namespace Magnus.SSO.Services
             _mapper = mapper;
             _hashService = hashService;
             _emailsConnectionService = emailsConnectionService;
+            _appSettings = appSettings;
         }
 
         public async Task<UserDTO?> ConfirmEmail(string token)
@@ -90,6 +93,19 @@ namespace Magnus.SSO.Services
             }
 
             return string.Empty;
+        }
+
+        internal async Task<bool> ChangePassword(ChangePasswordDTO changePasswordByToken)
+        {
+            var isPasswordCorrect = _hashService.VerifyPassword(_appSettings.LoggedUser.Password, changePasswordByToken.OldPassword);
+            if (isPasswordCorrect)
+            {
+                _appSettings.LoggedUser.Password = _hashService.Hash(changePasswordByToken.NewPassword);
+                await _usersRepository.Update(_appSettings.LoggedUser);
+                return true;
+            }
+
+            return false;
         }
 
         internal async Task ChangePasswordByToken(string token, string newPassword)
@@ -194,7 +210,7 @@ namespace Magnus.SSO.Services
         }
 
         public UserDTO ReturnUserOnLogin()
-            => _mapper.Map<UserDTO>(AppSettings.LoggedUser);
+            => _mapper.Map<UserDTO>(_appSettings.LoggedUser);
 
         public async Task Update(User user)
             => await _usersRepository.Update(user);

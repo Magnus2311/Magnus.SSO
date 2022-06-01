@@ -32,6 +32,8 @@ namespace magnus.sso
                 .AddTransient<UrlsService>()
                 .AddTransient<Tokenizer>();
 
+            services.AddScoped<AppSettings>();
+
             services.AddCors(p => p.AddPolicy("corsapp", builder =>
             {
                 builder.WithOrigins("*").AllowAnyMethod().AllowAnyHeader();
