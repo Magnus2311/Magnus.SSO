@@ -55,6 +55,26 @@ namespace Magnus.SSO.Services
             return null;
         }
 
+        public async Task<UserDTO?> RedirectByToken(string token)
+        {
+            if (!_tokenizer.ValidateToken(token))
+                return null;
+
+            var claims = _tokenizer.DecodeToken(token).ToDictionary(x => x.Key, x => x.Value);
+            var email = claims[ClaimTypes.Email];
+
+            var callback = await _urlsService.GetCallbackByToken(token);
+            if (callback != null)
+            {
+                var user = await _usersRepository.GetByEmail(email);
+                var userDTO = _mapper.Map<UserDTO>(user);
+                userDTO.CallbackUrl = callback;
+                return userDTO;
+            }
+
+            return null;
+        }
+
         public async Task<string> ValidateToken(string token)
         {
             if (!_tokenizer.ValidateToken(token))
@@ -70,6 +90,45 @@ namespace Magnus.SSO.Services
             }
 
             return string.Empty;
+        }
+
+        internal async Task ChangePasswordByToken(string token, string newPassword)
+        {
+            if (!_tokenizer.ValidateToken(token))
+                return;
+
+            var claims = _tokenizer.DecodeToken(token).ToDictionary(x => x.Key, x => x.Value);
+            var email = claims[ClaimTypes.Email];
+
+            var user = await _usersRepository.GetByEmail(email);
+            user.Password = _hashService.Hash(newPassword);
+            await _usersRepository.Update(user);
+        }
+
+        internal async Task ResetPassword(ResetPasswordDTO resetPasswordDTO)
+        {
+            User? user = null;
+            if (!string.IsNullOrEmpty(resetPasswordDTO.Username))
+                user = await _usersRepository.GetByUsername(resetPasswordDTO.Username);
+            else if (!string.IsNullOrEmpty(resetPasswordDTO.Email))
+                user = await _usersRepository.GetByEmail(resetPasswordDTO.Email);
+
+            if (user is null) return;
+
+            var token = _tokenizer.CreateRegistrationToken(user.Email);
+            await _urlsService.Add(new Callback()
+            {
+                CallbackUrl = resetPasswordDTO.CallbackUrl,
+                Token = token
+            });
+
+            await _emailsConnectionService.SendResetPasswordEmail(new ResetPasswordEmailDTO()
+            {
+                Username = user.Username,
+                Email = user.Email,
+                SenderType = resetPasswordDTO.SenderType,
+                Token = token
+            });
         }
 
         public async Task<UserDTO?> Add(UserDTO? userDTO)

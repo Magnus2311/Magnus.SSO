@@ -63,6 +63,28 @@ namespace magnus.sso.Controllers
             return Ok();
         }
 
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword(ResetPasswordDTO resetPasswordDTO)
+        {
+            await _usersService.ResetPassword(resetPasswordDTO);
+
+            return Ok();
+        }
+
+        [HttpGet("reset-password-confirmation")]
+        public async Task<IActionResult> ResetPasswordConfirmation(string token)
+        {
+            var userDTO = await _usersService.RedirectByToken(token);
+            return Redirect(userDTO is not null ? $"{userDTO.CallbackUrl}?token={token}&username={userDTO.Username}" : "");
+        }
+
+        [HttpPost("change-password-by-token")]
+        public async Task<IActionResult> ChangePasswordByToken(ChangePasswordByToken changePasswordByToken)
+        {
+            await _usersService.ChangePasswordByToken(changePasswordByToken.Token, changePasswordByToken.NewPassword);
+            return Ok();
+        }
+
         [SSO]
         [HttpGet("try-login")]
         public IActionResult TryLogin(string accessToken)
