@@ -124,9 +124,9 @@ namespace Magnus.SSO.Services
         internal async Task ResendConfirmationEmail(ResendConfirmationEmailDTO userDTO)
         {
             User? user = null;
-            if (string.IsNullOrEmpty(userDTO.Username)) user = await _usersRepository.GetByUsername(userDTO.Username);
-            else if (string.IsNullOrEmpty(userDTO.Email)) user = await _usersRepository.GetByEmail(userDTO.Email);
-            if (user is null) return;
+            if (!string.IsNullOrEmpty(userDTO.Username)) user = await _usersRepository.GetByUsername(userDTO.Username);
+            else if (!string.IsNullOrEmpty(userDTO.Email)) user = await _usersRepository.GetByEmail(userDTO.Email);
+            if (user is null || user.IsConfirmed) return;
 
             var token = _tokenizer.CreateRegistrationToken(user.Email);
             await _urlsService.Add(new Callback()
@@ -137,7 +137,7 @@ namespace Magnus.SSO.Services
 
             await _emailsConnectionService.SendRegistrationEmail(new RegistrationEmailDTO()
             {
-                Email = userDTO.Email,
+                Email = user.Email,
                 SenderType = userDTO.SenderType,
                 Token = token
             });
