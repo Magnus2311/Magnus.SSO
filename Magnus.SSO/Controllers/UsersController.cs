@@ -106,6 +106,13 @@ namespace magnus.sso.Controllers
         public async Task<IActionResult> ValidateToken(string accessToken)
             => Ok(await _usersService.ValidateToken(accessToken));
 
+        [HttpPost("resend-confirmation-email")]
+        public async Task<IActionResult> ResendConfirmationEmail(ResendConfirmationEmailDTO user)
+        {
+            await _usersService.ResendConfirmationEmail(user);
+            return Ok();
+        }
+
         private void SetAccessTokenInCookie(string accessToken)
         {
             var cookieOptions = new CookieOptions

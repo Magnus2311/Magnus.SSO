@@ -121,6 +121,28 @@ namespace Magnus.SSO.Services
             await _usersRepository.Update(user);
         }
 
+        internal async Task ResendConfirmationEmail(ResendConfirmationEmailDTO userDTO)
+        {
+            User? user = null;
+            if (string.IsNullOrEmpty(userDTO.Username)) user = await _usersRepository.GetByUsername(userDTO.Username);
+            else if (string.IsNullOrEmpty(userDTO.Email)) user = await _usersRepository.GetByEmail(userDTO.Email);
+            if (user is null) return;
+
+            var token = _tokenizer.CreateRegistrationToken(user.Email);
+            await _urlsService.Add(new Callback()
+            {
+                CallbackUrl = userDTO.CallbackUrl,
+                Token = token
+            });
+
+            await _emailsConnectionService.SendRegistrationEmail(new RegistrationEmailDTO()
+            {
+                Email = userDTO.Email,
+                SenderType = userDTO.SenderType,
+                Token = token
+            });
+        }
+
         internal async Task ResetPassword(ResetPasswordDTO resetPasswordDTO)
         {
             User? user = null;
