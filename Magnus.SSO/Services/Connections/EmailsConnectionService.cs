@@ -14,6 +14,9 @@ namespace Magnus.SSO.Services.Connections
         }
 
         public async Task SendRegistrationEmail(RegistrationEmailDTO registrationEmailDTO)
-            => await _httpClient.PostAsJsonAsync(_emailsApiUrl, registrationEmailDTO);
+            => await _httpClient.PostAsJsonAsync($"{_emailsApiUrl}/registration", registrationEmailDTO);
+
+        public async Task SendResetPasswordEmail(ResetPasswordEmailDTO resetPasswordEmailDTO)
+            => await _httpClient.PostAsJsonAsync($"{_emailsApiUrl}/reset-password", resetPasswordEmailDTO);
     }
 }

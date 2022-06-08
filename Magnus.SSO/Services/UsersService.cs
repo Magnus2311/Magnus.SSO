@@ -17,13 +17,15 @@ namespace Magnus.SSO.Services
         private readonly HashService _hashService;
         private readonly Tokenizer _tokenizer;
         private readonly EmailsConnectionService _emailsConnectionService;
+        private readonly AppSettings _appSettings;
 
         public UsersService(UsersRepository usersRepository,
             UrlsService urlsService,
             Tokenizer tokenizer,
             IMapper mapper,
             HashService hashService,
-            EmailsConnectionService emailsConnectionService)
+            EmailsConnectionService emailsConnectionService,
+            AppSettings appSettings)
         {
             _usersRepository = usersRepository;
             _urlsService = urlsService;
@@ -31,6 +33,7 @@ namespace Magnus.SSO.Services
             _mapper = mapper;
             _hashService = hashService;
             _emailsConnectionService = emailsConnectionService;
+            _appSettings = appSettings;
         }
 
         public async Task<UserDTO?> ConfirmEmail(string token)
@@ -55,6 +58,26 @@ namespace Magnus.SSO.Services
             return null;
         }
 
+        public async Task<UserDTO?> RedirectByToken(string token)
+        {
+            if (!_tokenizer.ValidateToken(token))
+                return null;
+
+            var claims = _tokenizer.DecodeToken(token).ToDictionary(x => x.Key, x => x.Value);
+            var email = claims[ClaimTypes.Email];
+
+            var callback = await _urlsService.GetCallbackByToken(token);
+            if (callback != null)
+            {
+                var user = await _usersRepository.GetByEmail(email);
+                var userDTO = _mapper.Map<UserDTO>(user);
+                userDTO.CallbackUrl = callback;
+                return userDTO;
+            }
+
+            return null;
+        }
+
         public async Task<string> ValidateToken(string token)
         {
             if (!_tokenizer.ValidateToken(token))
@@ -70,6 +93,80 @@ namespace Magnus.SSO.Services
             }
 
             return string.Empty;
+        }
+
+        internal async Task<bool> ChangePassword(ChangePasswordDTO changePasswordByToken)
+        {
+            var isPasswordCorrect = _hashService.VerifyPassword(_appSettings.LoggedUser.Password, changePasswordByToken.OldPassword);
+            if (isPasswordCorrect)
+            {
+                _appSettings.LoggedUser.Password = _hashService.Hash(changePasswordByToken.NewPassword);
+                await _usersRepository.Update(_appSettings.LoggedUser);
+                return true;
+            }
+
+            return false;
+        }
+
+        internal async Task ChangePasswordByToken(string token, string newPassword)
+        {
+            if (!_tokenizer.ValidateToken(token))
+                return;
+
+            var claims = _tokenizer.DecodeToken(token).ToDictionary(x => x.Key, x => x.Value);
+            var email = claims[ClaimTypes.Email];
+
+            var user = await _usersRepository.GetByEmail(email);
+            user.Password = _hashService.Hash(newPassword);
+            await _usersRepository.Update(user);
+        }
+
+        internal async Task ResendConfirmationEmail(ResendConfirmationEmailDTO userDTO)
+        {
+            User? user = null;
+            if (!string.IsNullOrEmpty(userDTO.Username)) user = await _usersRepository.GetByUsername(userDTO.Username);
+            else if (!string.IsNullOrEmpty(userDTO.Email)) user = await _usersRepository.GetByEmail(userDTO.Email);
+            if (user is null || user.IsConfirmed) return;
+
+            var token = _tokenizer.CreateRegistrationToken(user.Email);
+            await _urlsService.Add(new Callback()
+            {
+                CallbackUrl = userDTO.CallbackUrl,
+                Token = token
+            });
+
+            await _emailsConnectionService.SendRegistrationEmail(new RegistrationEmailDTO()
+            {
+                Email = user.Email,
+                SenderType = userDTO.SenderType,
+                Token = token
+            });
+        }
+
+        internal async Task ResetPassword(ResetPasswordDTO resetPasswordDTO)
+        {
+            User? user = null;
+            if (!string.IsNullOrEmpty(resetPasswordDTO.Username))
+                user = await _usersRepository.GetByUsername(resetPasswordDTO.Username);
+            else if (!string.IsNullOrEmpty(resetPasswordDTO.Email))
+                user = await _usersRepository.GetByEmail(resetPasswordDTO.Email);
+
+            if (user is null) return;
+
+            var token = _tokenizer.CreateRegistrationToken(user.Email);
+            await _urlsService.Add(new Callback()
+            {
+                CallbackUrl = resetPasswordDTO.CallbackUrl,
+                Token = token
+            });
+
+            await _emailsConnectionService.SendResetPasswordEmail(new ResetPasswordEmailDTO()
+            {
+                Username = user.Username,
+                Email = user.Email,
+                SenderType = resetPasswordDTO.SenderType,
+                Token = token
+            });
         }
 
         public async Task<UserDTO?> Add(UserDTO? userDTO)
@@ -135,7 +232,7 @@ namespace Magnus.SSO.Services
         }
 
         public UserDTO ReturnUserOnLogin()
-            => _mapper.Map<UserDTO>(AppSettings.LoggedUser);
+            => _mapper.Map<UserDTO>(_appSettings.LoggedUser);
 
         public async Task Update(User user)
             => await _usersRepository.Update(user);
