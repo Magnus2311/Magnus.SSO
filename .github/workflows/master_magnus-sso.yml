@@ -53,5 +53,5 @@ jobs:
         with:
           app-name: 'magnus-sso'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_F083A5EFAAC847339EA0749D2ADA1C12 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_B3A2A336C0C2432A8F9B1757ACC3F1F6 }}
           package: .
